@@ -1,7 +1,7 @@
 //  Filename:     _Probes.ino
 //  Description:  Система "Умный дом". Функции для работы с датчиками
 //  Author:       Aleksandr Prilutskiy
-//  Date:         05.04.2019
+//  Date:         08.04.2019
 
       float         sumTemperature   = 0;                    // Накапление значений температуры
       float         sumHumidity      = 0;                    // Накапление значений влажности
@@ -99,14 +99,11 @@ void ProbesCheckLPG() {
  Serial.print("WARNING! LPG = ");
  Serial.print(lastLPG);
  Serial.println(" PPM");
- if ((MQTT_LPG.length() > 0) && (WiFiSSID.length() > 0) &&
-     (MQTT_Server.length() > 0) && (WiFi.status() == WL_CONNECTED)) {
-  digitalWrite(ledWiFi, HIGH);
-  if (!client.connected()) MQTTReconnect();
-  snprintf(msg, 50, "%f", lastLPG);
-  client.publish(MQTT_LPG.c_str(), msg);
-  digitalWrite(ledWiFi, LOW);
- }
+ if (!client.connected()) MQTTReconnect();
+ if (!client.connected()) return;
+ snprintf(msg, 50, "%f", lastLPG);
+ client.publish(MQTT_LPG.c_str(), msg);
+ digitalWrite(ledWiFi, LOW);
  while (abs(millis() - timerAlarmBeep) < 1000) delay(10); 
  noTone(pinBuzzer);
  timerAlarmBeep = millis();
@@ -121,9 +118,9 @@ void ProbesSendData() {
  if (abs(millis() - timerSendData) < timeoutSendData) return;
  timerSendData = millis();
  if ((countDHT11 == 0) && (countLPG == 0)) return;
- if ((WiFiSSID.length() == 0) || (MQTT_Server.length() == 0) || (WiFi.status() != WL_CONNECTED)) return;
  digitalWrite(ledWiFi, HIGH);
  if (!client.connected()) MQTTReconnect();
+ if (!client.connected()) return;
  if (countDHT11 > 0) {
   if (MQTT_Temperature.length() > 0) {
    snprintf(msg, 50, "%f", floor(10 * sumTemperature / countDHT11) / 10);

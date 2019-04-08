@@ -1,7 +1,7 @@
 //  Filename:     _EEPROM.ino
 //  Description:  Система "Умный дом". Функции для работы с EEPROM
 //  Author:       Aleksandr Prilutskiy
-//  Date:         05.04.2019
+//  Date:         08.04.2019
 
 // Константы адресов переменных в EEPROM:
 const uint16_t      epprom_WiFiSSID  =   0;                  // WiFiSSID (32 байта)

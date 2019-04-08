@@ -1,8 +1,7 @@
 //  Filename:     _Web.ino
 //  Description:  Система "Умный дом". Функции подготовки и обработки web-страниц
 //  Author:       Aleksandr Prilutskiy
-//  Date:         05.04.2019
-//
+//  Date:         08.04.2019
 
 // #FUNCTION# ===================================================================================================
 // Name...........: webGetIndex
@@ -63,9 +62,19 @@ void webGetUpdate() {
    EEPROMSaveInt(WebServer.arg(i).toInt(), alarmLPG, "LPG Alarm Level", epprom_alarmLPG);
  }
  EEPROM.end();
- if (errorStr.length() > 0) WebServer.send(200, "text/html", webPageError(errorStr));
- else WebServer.send(200, "text/html", webPageUpdate());
+ if (errorStr.length() > 0) {
+  WebServer.send(200, "text/html", webPageError(errorStr));
+  digitalWrite(ledWiFi, LOW);
+  return;
+ }
+ WebServer.send(200, "text/html", webPageUpdate());
  digitalWrite(ledWiFi, LOW);
+ for (int i = 0; i < 5; i++) {
+  delay(500);
+  digitalWrite(ledPower, LOW);
+  delay(500);
+  digitalWrite(ledPower, HIGH);
+ }
  Reboot();
 } // webGetUpdate
 
@@ -130,15 +139,15 @@ String webPageIndex() {
  web +=    "<div class=\"left\">"
             "<h2>Состояние утройства</h2>"
             "<div class=\"info\">"
-             "<table>";
- if (!isnan(lastTemperature))
-  web +=      "<tr><td>Значения датчика температуры:</td><td>" +
-               String(round(lastTemperature * 100) / 100, DEC) + "°С</td></tr>";
- if (!isnan(lastHumidity))
-  web +=      "<tr><td>Значения датчика влажности:</td><td>" +
-               String(round(lastHumidity * 100) / 100, DEC) + "%</td></tr>";
- web +=       "<tr><td>Значения датчика углеводородных газов:</td><td>" +
-               String(round(lastLPG * 100) / 100, DEC) + "PPM</td></tr>"
+             "<table>" +
+ (!isnan(lastTemperature) ? "<tr><td>Значения датчика температуры:</td><td>" +
+               String(round(lastTemperature * 100) / 100, DEC) + " °С</td></tr>" : "") +
+ (!isnan(lastHumidity) ? "<tr><td>Значения датчика влажности:</td><td>" +
+               String(round(lastHumidity * 100) / 100, DEC) + " %</td></tr>" : "") +
+              "<tr><td>Значения датчика углеводородных газов:</td><td>" +
+               String(round(lastLPG * 100) / 100, DEC) + " PPM</td></tr>"
+              "<tr><td>Соединение с брокером MQTT:</td><td>" +
+               (client.connected() ? "установлено" : "отсуствует") + "</td></tr>"
              "</table>"
             "</div>"
            "</div>";

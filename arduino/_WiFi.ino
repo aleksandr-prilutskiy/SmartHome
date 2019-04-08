@@ -1,7 +1,7 @@
 //  Filename:     _WiFi.ino
-//  Description:  Система "Умный дом". Функции для работы с сетью WiFi и протоколом MQTT
+//  Description:  SmartHome - Функции для работы с сетью WiFi и протоколом MQTT
 //  Author:       Aleksandr Prilutskiy
-//  Date:         05.04.2019
+//  Date:         08.04.2019
 
 const uint32_t      timeoutWiFiConnect   =  5000;            // Время ожидания подключения к WiFi
 const uint32_t      timeoutWiFiReconnect = 30000;            // Время ожидания для переподключения к WiFi
@@ -23,6 +23,7 @@ void WiFiSetup() {
  timerWiFi = millis();
  if (WiFiSSID.length() == 0) {
   Serial.print("Setting Soft-AP ... ");
+  WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(local_IP, gateway, subnet);
   if (WiFi.softAP("ESP8266WiFi", "")) {
    Serial.println("Ready");
@@ -36,6 +37,8 @@ void WiFiSetup() {
  }
  Serial.print("Connecting to " + WiFiSSID + " ");
  uint32_t timer = millis();
+ WiFi.mode(WIFI_STA);
+ WiFi.setAutoConnect(false);
  WiFi.begin(WiFiSSID.c_str(), WiFiPassword.c_str());
  delay(250);
  while (WiFi.status() != WL_CONNECTED) {
@@ -71,10 +74,14 @@ void WiFiSetup() {
 // Syntax.........: WiFiReconnect()
 // ==============================================================================================================
 void WiFiReconnect() {
- if (abs(millis() - timerWiFi) < timeoutWiFiReconnect) return;
+ if ((WiFiSSID.length() == 0) || (abs(millis() - timerWiFi) < timeoutWiFiReconnect)) return;
  digitalWrite(ledWiFi, HIGH);
  timerWiFi = millis();
- Serial.print("Reconnecting to " + WiFiSSID + " ");
+ Serial.print("Reconnecting to " + WiFiSSID + " ... ");
+ WiFi.disconnect();
+ WiFi.mode(WIFI_OFF);
+ delay(500);
+ WiFi.mode(WIFI_STA);
  WiFi.begin(WiFiSSID.c_str(), WiFiPassword.c_str());
  delay(250);
  while (WiFi.status() != WL_CONNECTED) {
@@ -100,12 +107,17 @@ void WiFiReconnect() {
 // Syntax.........: MQTTReconnect()
 // ==============================================================================================================
 void MQTTReconnect() {
- if (MQTT_Server.length() == 0) return;
+ if ((WiFiSSID.length() == 0) || (MQTT_Server.length() == 0) || (WiFi.status() != WL_CONNECTED)) return;
  if (abs(millis() - timerMQTT) < timeoutMQTTReconnect) return;
+ digitalWrite(ledWiFi, HIGH);
  timerMQTT = millis();
  Serial.print("Attempting MQTT connection ... ");
+ client.setServer(MQTT_Server.c_str(), MQTT_Port);
  if (client.connect(MQTT_ID.c_str(), MQTT_Login.c_str(), MQTT_Password.c_str())) Serial.println("connected");
- else Serial.println("failed!");
+ else {
+  Serial.println("failed!");
+  digitalWrite(ledWiFi, LOW);
+ }
 } // MQTTReconnect
 
 // #FUNCTION# ===================================================================================================

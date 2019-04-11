@@ -1,7 +1,7 @@
 //  Filename:     _Web.ino
 //  Description:  Система "Умный дом". Функции подготовки и обработки web-страниц
 //  Author:       Aleksandr Prilutskiy
-//  Date:         08.04.2019
+//  Date:         10.04.2019
 
 // #FUNCTION# ===================================================================================================
 // Name...........: webGetIndex
@@ -140,14 +140,14 @@ String webPageIndex() {
             "<h2>Состояние утройства</h2>"
             "<div class=\"info\">"
              "<table>" +
- (!isnan(lastTemperature) ? "<tr><td>Значения датчика температуры:</td><td>" +
+              (!isnan(lastTemperature) ? "<tr><td>Значения датчика температуры:</td><td>" +
                String(round(lastTemperature * 100) / 100, DEC) + " °С</td></tr>" : "") +
- (!isnan(lastHumidity) ? "<tr><td>Значения датчика влажности:</td><td>" +
+              (!isnan(lastHumidity) ? "<tr><td>Значения датчика влажности:</td><td>" +
                String(round(lastHumidity * 100) / 100, DEC) + " %</td></tr>" : "") +
               "<tr><td>Значения датчика углеводородных газов:</td><td>" +
                String(round(lastLPG * 100) / 100, DEC) + " PPM</td></tr>"
               "<tr><td>Соединение с брокером MQTT:</td><td>" +
-               (client.connected() ? "установлено" : "отсуствует") + "</td></tr>"
+               (connectMQTT ? "установлено" : "отсуствует") + "</td></tr>"
              "</table>"
             "</div>"
            "</div>";
@@ -177,7 +177,7 @@ String webPageSetup() {
                 "<td>Пароль точки доступа WiFi:</td>"
                 "<td><input type=\"password\" name=\"pass\" value=\"" + password + "\"></td>"
                "</tr>"
-               "<tr><td><strong>Настройки протокола MQTT:</strong></td></tr>"
+               "<tr><td><br><strong>Настройки протокола MQTT:</strong></td></tr>"
                "<tr>"
                 "<td>DNS-имя или IP-адрес брокера MQTT:</td>"
                 "<td><input name=\"mqtt_server\" value=\"" + MQTT_Server + "\"></td>"
@@ -198,7 +198,7 @@ String webPageSetup() {
                 "<td>Пароль пользователя брокера MQTT:</td>"
                 "<td><input name=\"mqtt_pass\" value=\"" + MQTT_Password + "\"></td>"
                "</tr>"
-               "<tr><td><strong>Настройки датчиков:</strong></td></tr>"
+               "<tr><td><br><strong>Настройки датчиков:</strong></td></tr>"
                "<tr>"
                 "<td>MQTT ID датчика температуры :</td>"
                 "<td><input name=\"mqtt_tmp\" value=\"" + MQTT_Temperature + "\"></td>"

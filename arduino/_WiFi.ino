@@ -1,7 +1,7 @@
 //  Filename:     _WiFi.ino
 //  Description:  SmartHome - Функции для работы с сетью WiFi и протоколом MQTT
 //  Author:       Aleksandr Prilutskiy
-//  Date:         08.04.2019
+//  Date:         10.04.2019
 
 const uint32_t      timeoutWiFiConnect   =  5000;            // Время ожидания подключения к WiFi
 const uint32_t      timeoutWiFiReconnect = 30000;            // Время ожидания для переподключения к WiFi
@@ -62,8 +62,14 @@ void WiFiSetup() {
   Serial.print("Connection to MQTT broker .. ");
   client.setServer(MQTT_Server.c_str(), MQTT_Port);
   client.connect(MQTT_ID.c_str(), MQTT_Login.c_str(), MQTT_Password.c_str());
-  if (client.connected()) Serial.println("Ready");
-  else WiFiError();
+  if (client.connected()) {
+   connectMQTT = true;
+   Serial.println("Ready");
+  }
+  else {
+   connectMQTT = false;
+   WiFiError();
+  }
  }
  digitalWrite(ledWiFi, LOW);
 } // WiFiSetup
@@ -113,10 +119,13 @@ void MQTTReconnect() {
  timerMQTT = millis();
  Serial.print("Attempting MQTT connection ... ");
  client.setServer(MQTT_Server.c_str(), MQTT_Port);
- if (client.connect(MQTT_ID.c_str(), MQTT_Login.c_str(), MQTT_Password.c_str())) Serial.println("connected");
+ if (client.connect(MQTT_ID.c_str(), MQTT_Login.c_str(), MQTT_Password.c_str())) {
+  connectMQTT = true;
+  Serial.println("connected");
+ }
  else {
-  Serial.println("failed!");
-  digitalWrite(ledWiFi, LOW);
+  connectMQTT = false;
+  WiFiError();
  }
 } // MQTTReconnect
 

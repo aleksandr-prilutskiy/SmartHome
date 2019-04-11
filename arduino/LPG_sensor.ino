@@ -1,9 +1,9 @@
 //  Title:        SmartHome - Smart LPG Sensor
-//  Filename:     smart_LPG_sensor.ino
+//  Filename:     LPG_sensor.ino
 //  Description:  Система "Умный дом". Скетч прошивки блока Smart LPG Sensor
 //  Author:       Aleksandr Prilutskiy
-//  Version:      0.0.4.9
-//  Date:         08.04.2019
+//  Version:      0.1.0.0
+//  Date:         10.04.2019
 //  URL:          https://github.com/aleksandr-prilutskiy/SmartHome-SensorLPG
 //
 // Функции устройства:
@@ -38,7 +38,7 @@
 
 // Константы настройки устройства:
 const String        deviceName       = "Smart LPG Sensor";   // Название устройства
-const String        deviceVersion    = "4.9";                // Версия прошивки устройства
+const String        deviceVersion    = "1.0.0";              // Версия прошивки устройства
 const uint8_t       pinButtonReset   = D0;                   // Кнопка сброса настроек WiFi
 const uint8_t       ledError         = D1;                   // Светодиод индикации ошибки
 const uint8_t       ledPower         = D2;                   // Светодиод индикации работы устройства
@@ -66,6 +66,7 @@ const uint16_t      sizeEEPROM       = 256;                  // Размер и�
       float         lastHumidity     = 0;                    // Текущее значение влажности
       float         lastLPG          = 0;                    // Текущее значение углеводородных газов
       String        errorStr         = "";                   // Строка с сообщением об ошибке
+      bool          connectMQTT      = false;                // Признак подключения к брокеру MQTT
 DHT                 dht11(pinDHT, DHT11);                    // Переменная для работы с датчиком DHT-11
 ESP8266WebServer    WebServer(80);                           // Объект для работы с Web-сервером
 WiFiClient          espClient;
@@ -84,7 +85,7 @@ void setup() {
  pinMode(pinButtonReset, INPUT);
  pinMode(pinMQ6, INPUT);
  digitalWrite(ledError, LOW);
- digitalWrite(ledPower, LOW);
+ digitalWrite(ledPower, HIGH);
  digitalWrite(ledWiFi, LOW);
  digitalWrite(pinBuzzer, LOW);
  Serial.begin(115200);
@@ -100,14 +101,7 @@ void setup() {
  WebServer.on("/setup", webGetSetup);
  WebServer.on("/update", webGetUpdate);
  WebServer.onNotFound(webNotFound);
- digitalWrite(ledPower, HIGH);
- tone(pinBuzzer, 415, 250);
- delay(100);
- tone(pinBuzzer, 466, 250);
- delay(100);
- tone(pinBuzzer, 370, 500);
- delay(200);
- noTone(pinBuzzer); 
+ StartMessage();
 } // setup
 
 // #FUNCTION# ===================================================================================================
@@ -157,4 +151,27 @@ void CheckReset() {
  Serial.println();
  Reboot();
 } // CheckReset
+
+// #FUNCTION# ===================================================================================================
+// Name...........: StartMessage
+// Description....: Индикация и звуковой сигнал при запуске устройства
+// Syntax.........: StartMessage()
+// ==============================================================================================================
+void StartMessage() {
+ digitalWrite(ledPower, LOW);
+ tone(pinBuzzer, 415, 250);
+ delay(100);
+ digitalWrite(ledPower, HIGH);
+ tone(pinBuzzer, 466, 250);
+ delay(100);
+ digitalWrite(ledPower, LOW);
+ tone(pinBuzzer, 370, 350);
+ digitalWrite(ledPower, HIGH);
+ tone(pinBuzzer, 370, 150);
+ delay(200);
+ noTone(pinBuzzer); 
+ digitalWrite(ledPower, LOW);
+ delay(350);
+ digitalWrite(ledPower, HIGH);
+} // StartMessage
 

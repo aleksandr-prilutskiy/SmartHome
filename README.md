@@ -13,7 +13,7 @@
 - Датчик углеводородных газов <strong>MQ-6</strong>
 - Датчик температуры и влажности <strong>DHT11</strong>
 
-Подключение WeMos Di mini:
+Подключение <strong>WeMos Di mini</strong>:
  pin D0 -> Reset Button
  pin D1 -> Error LED (Red)
  pin D2 -> Power LED (Green)

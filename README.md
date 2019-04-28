@@ -26,3 +26,5 @@
  pin A0 -> MQ6<br>
 
 В папке <strong>Case</strong> - файлы под печать для копруса устройства.
+
+<img src="Scheme_bb.jpg">

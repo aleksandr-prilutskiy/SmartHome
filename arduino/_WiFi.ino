@@ -1,7 +1,7 @@
 //  Filename:     _WiFi.ino
-//  Description:  SmartHome - Функции для работы с сетью WiFi и протоколом MQTT
+//  Description:  Система "Умный дом". Функции для работы с сетью WiFi и протоколом MQTT
 //  Author:       Aleksandr Prilutskiy
-//  Date:         10.04.2019
+//  Date:         06.05.2019
 
 const uint32_t      timeoutWiFiConnect   =  5000;            // Время ожидания подключения к WiFi
 const uint32_t      timeoutWiFiReconnect = 30000;            // Время ожидания для переподключения к WiFi
@@ -19,7 +19,7 @@ IPAddress           gateway(192,168,0,1);                    // Шлюз по у
 // Syntax.........: WiFiSetup()
 // ==============================================================================================================
 void WiFiSetup() {
- digitalWrite(ledWiFi, HIGH);
+ digitalWrite(ledWiFi, LOW);
  timerWiFi = millis();
  if (WiFiSSID.length() == 0) {
   Serial.print("Setting Soft-AP ... ");
@@ -32,7 +32,6 @@ void WiFiSetup() {
    Serial.println(WiFi.softAPIP());
   }
   else Serial.println("Failed!");
-  digitalWrite(ledWiFi, LOW);
   return;
  }
  Serial.print("Connecting to " + WiFiSSID + " ");
@@ -43,11 +42,11 @@ void WiFiSetup() {
  delay(250);
  while (WiFi.status() != WL_CONNECTED) {
   delay(250);
-  digitalWrite(ledWiFi, LOW);
-  delay(250);
   digitalWrite(ledWiFi, HIGH);
+  delay(250);
+  digitalWrite(ledWiFi, LOW);
   if (abs(millis() - timer) > timeoutWiFiConnect) {
-    WiFiError();
+    WiFiError(3);
     timerWiFi = millis();
     return;
   }
@@ -68,10 +67,9 @@ void WiFiSetup() {
   }
   else {
    connectMQTT = false;
-   WiFiError();
+   WiFiError(2);
   }
  }
- digitalWrite(ledWiFi, LOW);
 } // WiFiSetup
 
 // #FUNCTION# ===================================================================================================
@@ -94,7 +92,7 @@ void WiFiReconnect() {
   delay(250);
   digitalWrite(ledWiFi, LOW);
   if (millis() > timerWiFi) {
-    WiFiError();
+    WiFiError(3);
     return;
   }
   delay(250);
@@ -104,7 +102,6 @@ void WiFiReconnect() {
  Serial.println(". Ready");
  Serial.print("IP: ");
  Serial.println(WiFi.localIP());
- digitalWrite(ledWiFi, LOW);
 } // WiFiReconnect
 
 // #FUNCTION# ===================================================================================================
@@ -125,21 +122,23 @@ void MQTTReconnect() {
  }
  else {
   connectMQTT = false;
-  WiFiError();
+  WiFiError(2);
  }
 } // MQTTReconnect
 
 // #FUNCTION# ===================================================================================================
 // Name...........: WiFiError
-// Description....: Сигнализация об ошибке работы с WiFi
-// Syntax.........: WiFiError()
+// Description....: Сигнализация об ошибке
+// Syntax.........: WiFiError(n)
 // ==============================================================================================================
-void WiFiError() {
+void WiFiError(int n) {
  Serial.println("Failed!");
- digitalWrite(ledError, HIGH);
- digitalWrite(ledWiFi, HIGH);
- delay(500);
- digitalWrite(ledError, LOW);
+ for (unsigned int i = 0; i < n; i++) {
+  digitalWrite(ledError, HIGH);
+  delay(1000);
+  digitalWrite(ledError, LOW);
+  delay(1000);
+ }
  digitalWrite(ledWiFi, LOW);
 } // WiFiError
 

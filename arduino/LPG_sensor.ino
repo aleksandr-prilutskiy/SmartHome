@@ -2,33 +2,9 @@
 //  Filename:     LPG_sensor.ino
 //  Description:  Система "Умный дом". Скетч прошивки блока Smart LPG Sensor
 //  Author:       Aleksandr Prilutskiy
-//  Version:      0.1.0.0
-//  Date:         10.04.2019
+//  Version:      0.1.0.3
+//  Date:         06.05.2019
 //  URL:          https://github.com/aleksandr-prilutskiy/SmartHome-SensorLPG
-//
-// Функции устройства:
-// 1. Чтение показаний датчика углеводородных газов и отправка их брокеру MQTT
-// 2. Чтение показаний датчика температуры и влажности и отправка их брокеру MQTT
-// 3. Сигнализация о превышении критического уровня углеводородных газов
-// 4. Контроль и настройка устройства через web-интерфейс
-// 5. Сброс настроек устройства при удержании специальной кнопки
-//
-// Аппаратные средства:
-//  WeMos Di mini (https://wiki.wemos.cc/products:d1:d1_mini)
-//  Датчик углеводородных газов MQ-6
-//  Датчик температуры и влажности DHT11
-//
-// Подключение:
-//  pin D0 -> Reset Button
-//  pin D1 -> Error LED (Red)
-//  pin D2 -> Power LED (Green)
-//  pin D3 -> WiFi LED (Blue)
-//  pin D4 -> DHT11 (BuiltIn LED)
-//  pin D5 -> Piezo buzzer
-//  pin D6 -> NC
-//  pin D7 -> NC
-//  pin D8 -> NC
-//  pin A0 -> MQ6
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
@@ -38,11 +14,11 @@
 
 // Константы настройки устройства:
 const String        deviceName       = "Smart LPG Sensor";   // Название устройства
-const String        deviceVersion    = "1.0.0";              // Версия прошивки устройства
+const String        deviceVersion    = "1.0.3";              // Версия прошивки устройства
 const uint8_t       pinButtonReset   = D0;                   // Кнопка сброса настроек WiFi
-const uint8_t       ledError         = D1;                   // Светодиод индикации ошибки
-const uint8_t       ledPower         = D2;                   // Светодиод индикации работы устройства
-const uint8_t       ledWiFi          = D3;                   // Светодиод активности WiFi
+const uint8_t       ledPower         = D1;                   // Светодиод индикации работы устройства
+const uint8_t       ledWiFi          = D2;                   // Светодиод активности WiFi
+const uint8_t       ledError         = D3;                   // Светодиод индикации ошибки
 const uint8_t       pinDHT           = D4;                   // Датчик DHT-11
 const uint8_t       pinBuzzer        = D5;                   // Пьезоизлучатель
 const uint8_t       pinMQ6           = A0;                   // Датчик углеводородных газов (MQ6)
@@ -62,8 +38,9 @@ const uint16_t      sizeEEPROM       = 256;                  // Размер и�
       uint16_t      alarmLPG         = 0;                    // Порог опасного значения углеводородных газов
 
 // Прочие переменные:
-      float         lastTemperature  = 0;                    // Текущее значение температуры
-      float         lastHumidity     = 0;                    // Текущее значение влажности
+      String        strTemperature   = "";                   // Текущее значение температуры (строка)
+      String        strHumidity      = "";                   // Текущее значение влажности (строка)
+      String        strLPG           = "";                   // Текущее значение углеводородных газов (строка)
       float         lastLPG          = 0;                    // Текущее значение углеводородных газов
       String        errorStr         = "";                   // Строка с сообщением об ошибке
       bool          connectMQTT      = false;                // Признак подключения к брокеру MQTT
@@ -78,20 +55,20 @@ PubSubClient        client(espClient);
 // Syntax.........: setup()
 // ==============================================================================================================
 void setup() {
- pinMode(ledError, OUTPUT);
  pinMode(ledPower, OUTPUT);
  pinMode(ledWiFi, OUTPUT);
+ pinMode(ledError, OUTPUT);
  pinMode(pinBuzzer, OUTPUT);
  pinMode(pinButtonReset, INPUT);
  pinMode(pinMQ6, INPUT);
- digitalWrite(ledError, LOW);
  digitalWrite(ledPower, HIGH);
  digitalWrite(ledWiFi, LOW);
+ digitalWrite(ledError, LOW);
  digitalWrite(pinBuzzer, LOW);
  Serial.begin(115200);
  Serial.println();
  Serial.println("Start...");
- CheckReset();
+ CheckResetButton();
  dht11.begin();
  EEPROMReadAll();
  WiFiSetup();
@@ -111,7 +88,10 @@ void setup() {
 // ==============================================================================================================
 void loop() {
  if (WiFi.status() != WL_CONNECTED) WiFiReconnect();
- if ((WiFiSSID.length() == 0) || (WiFi.status() == WL_CONNECTED)) WebServer.handleClient();
+ if ((WiFiSSID.length() == 0) || (WiFi.status() == WL_CONNECTED)) {
+  digitalWrite(ledWiFi, HIGH);
+  WebServer.handleClient();
+ } else digitalWrite(ledWiFi, LOW);
  ProbesReadDHT11();
  ProbesReadLPG();
  ProbesCheckLPG();
@@ -127,30 +107,31 @@ void loop() {
 void(* Reboot) (void) = 0;
 
 // #FUNCTION# ===================================================================================================
-// Name...........: CheckReset
+// Name...........: CheckResetButton
 // Description....: Проверка нажатия кнопка сброса настроек и сброс настроек при ее удержании
-// Syntax.........: CheckReset()
+// Syntax.........: CheckResetButton()
 // ==============================================================================================================
-void CheckReset() {
+void CheckResetButton() {
  if (digitalRead(pinButtonReset) == LOW) return;
  uint32_t timer = millis() + 3000;
  while (millis() < timer) {
-  delay(200);
+  delay(250);
   digitalWrite(ledPower, LOW);
-  delay(200);
+  delay(250);
   digitalWrite(ledPower, HIGH);
   if (digitalRead(pinButtonReset) == LOW) return;
  }
  Serial.println();
- Serial.println("Reset device:");
+ Serial.println("Reset device...");
+ Serial.print("Clear EPPROM ...");
  EEPROM.begin(sizeEEPROM);
  for (int i = 0; i < sizeEEPROM; i++) EEPROM.write(i, 0);
  EEPROM.commit();
- Serial.println("Clear EPPROM ... OK");
+ Serial.println("OK");
  Serial.println("Reboot...");
  Serial.println();
  Reboot();
-} // CheckReset
+} // CheckResetButton
 
 // #FUNCTION# ===================================================================================================
 // Name...........: StartMessage
@@ -174,4 +155,3 @@ void StartMessage() {
  delay(350);
  digitalWrite(ledPower, HIGH);
 } // StartMessage
-

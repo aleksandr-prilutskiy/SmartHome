@@ -1,7 +1,7 @@
 //  Filename:     _Web.ino
 //  Description:  Система "Умный дом". Функции подготовки и обработки web-страниц
 //  Author:       Aleksandr Prilutskiy
-//  Date:         10.04.2019
+//  Date:         06.05.2019
 
 // #FUNCTION# ===================================================================================================
 // Name...........: webGetIndex
@@ -9,10 +9,9 @@
 // Syntax.........: webGetIndex()
 // ==============================================================================================================
 void webGetIndex() {
- digitalWrite(ledWiFi, HIGH);
+ digitalWrite(ledWiFi, LOW);
  Serial.println("HTTP GET /index");
  WebServer.send(200, "text/html", webPageIndex());
- digitalWrite(ledWiFi, LOW);
 } // webGetIndex
 
 // #FUNCTION# ===================================================================================================
@@ -21,10 +20,9 @@ void webGetIndex() {
 // Syntax.........: webGetSetup()
 // ==============================================================================================================
 void webGetSetup() {
- digitalWrite(ledWiFi, HIGH);
+ digitalWrite(ledWiFi, LOW);
  Serial.println("HTTP GET /setup");
  WebServer.send(200, "text/html", webPageSetup());
- digitalWrite(ledWiFi, LOW);
 } // webGetSetup()
 
 // #FUNCTION# ===================================================================================================
@@ -33,7 +31,7 @@ void webGetSetup() {
 // Syntax.........: webGetUpdate()
 // ==============================================================================================================
 void webGetUpdate() {
- digitalWrite(ledWiFi, HIGH);
+ digitalWrite(ledWiFi, LOW);
  Serial.println("HTTP POST /update");
  errorStr = "";
  EEPROM.begin(sizeEEPROM);
@@ -64,15 +62,13 @@ void webGetUpdate() {
  EEPROM.end();
  if (errorStr.length() > 0) {
   WebServer.send(200, "text/html", webPageError(errorStr));
-  digitalWrite(ledWiFi, LOW);
   return;
  }
  WebServer.send(200, "text/html", webPageUpdate());
- digitalWrite(ledWiFi, LOW);
  for (int i = 0; i < 5; i++) {
-  delay(500);
+  delay(100);
   digitalWrite(ledPower, LOW);
-  delay(500);
+  delay(100);
   digitalWrite(ledPower, HIGH);
  }
  Reboot();
@@ -84,7 +80,7 @@ void webGetUpdate() {
 // Syntax.........: webGetReset()
 // ==============================================================================================================
 void webGetReset() {
- digitalWrite(ledWiFi, HIGH);
+ digitalWrite(ledWiFi, LOW);
  Serial.println("HTTP GET /reset");
  Reboot();
 } // webGetReset
@@ -140,13 +136,13 @@ String webPageIndex() {
             "<h2>Состояние утройства</h2>"
             "<div class=\"info\">"
              "<table>" +
-              (!isnan(lastTemperature) ? "<tr><td>Значения датчика температуры:</td><td>" +
-               String(round(lastTemperature * 100) / 100, DEC) + " °С</td></tr>" : "") +
-              (!isnan(lastHumidity) ? "<tr><td>Значения датчика влажности:</td><td>" +
-               String(round(lastHumidity * 100) / 100, DEC) + " %</td></tr>" : "") +
-              "<tr><td>Значения датчика углеводородных газов:</td><td>" +
-               String(round(lastLPG * 100) / 100, DEC) + " PPM</td></tr>"
-              "<tr><td>Соединение с брокером MQTT:</td><td>" +
+              (strTemperature.length() > 0
+               ? "<tr><td>Значения датчика температуры:</td><td>" + strTemperature + " °С</td></tr>" : "") +
+              (strHumidity.length() > 0
+               ? "<tr><td>Значения датчика влажности:</td><td>" + strHumidity + " %</td></tr>" : "") +
+              (strLPG.length() > 0
+               ? "<tr><td>Значения датчика углеводородных газов:</td><td>" +  strLPG + " PPM</td></tr>" : "") +
+              "<tr><td>Соединение с брокером MQTT:</td><td>" + 
                (connectMQTT ? "установлено" : "отсуствует") + "</td></tr>"
              "</table>"
             "</div>"
@@ -270,18 +266,6 @@ String webPageError(String message) {
 } // webPageError
 
 // #FUNCTION# ===================================================================================================
-// Name...........: webNotFound
-// Description....: Вывод ошибки "Страница не найдена"
-// Syntax.........: webNotFound()
-// ==============================================================================================================
-void webNotFound() {
- digitalWrite(ledWiFi, HIGH);
- Serial.println("Error: HTTP Page Not Found");
- WebServer.send(404, "text/html", webPageError("Страница не найдена"));
- digitalWrite(ledWiFi, LOW);
-} // webNotFound
-
-// #FUNCTION# ===================================================================================================
 // Name...........: webPageFooter
 // Description....: Подготовка 'подвала' web-страницы
 // Syntax.........: webPageFooter()
@@ -301,4 +285,15 @@ String webPageFooter() {
         "</html>";
  return (web);
 } // webPageFooter
+
+// #FUNCTION# ===================================================================================================
+// Name...........: webNotFound
+// Description....: Вывод ошибки "Страница не найдена"
+// Syntax.........: webNotFound()
+// ==============================================================================================================
+void webNotFound() {
+ digitalWrite(ledWiFi, LOW);
+ Serial.println("Error: HTTP Page Not Found");
+ WebServer.send(404, "text/html", webPageError("Страница не найдена"));
+} // webNotFound
 

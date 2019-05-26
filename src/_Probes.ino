@@ -1,7 +1,7 @@
 //  Filename:     _Probes.ino
 //  Description:  Система "Умный дом". Функции для работы с датчиками
 //  Author:       Aleksandr Prilutskiy
-//  Date:         22.05.2019
+//  Date:         24.05.2019
 
       float         sumTemperature   = 0;                    // Накапление значений температуры
       float         sumHumidity      = 0;                    // Накапление значений влажности
@@ -153,4 +153,3 @@ void ProbesSendData() {
  countDHT11       = 0;
  countLPG         = 0;
 } // ProbesSendData
-

@@ -1,7 +1,7 @@
 //  Filename:     _WiFi.ino
 //  Description:  Система "Умный дом". Функции для работы с сетью WiFi и протоколом MQTT
 //  Author:       Aleksandr Prilutskiy
-//  Date:         26.05.2019
+//  Date:         28.05.2019
 
 const uint32_t      timeoutWiFiConnect   = 10000;            // Время ожидания подключения к WiFi
 const uint32_t      timeoutWiFiReconnect = 30000;            // Время ожидания для переподключения к WiFi
@@ -53,7 +53,8 @@ void WiFiSetup() {
   Serial.print(".");
  }
  Serial.println(". Ready");
- WiFi.setAutoConnect(true);
+// WiFi.setAutoConnect(true);
+ WiFi.setAutoReconnect(true);
  WebServer.begin();
  Serial.print("HTTP server started on: ");
  Serial.println(WiFi.localIP());
@@ -72,43 +73,6 @@ void WiFiSetup() {
   }
  }
 } // WiFiSetup
-
-// #FUNCTION# ===================================================================================================
-// Name...........: WiFiReconnect
-// Description....: Восстановление подключения WiFi
-// Syntax.........: WiFiReconnect()
-// ==============================================================================================================
-void WiFiReconnect() {
- if ((WiFiSSID.length() == 0) || (abs(millis() - timerWiFi) < timeoutWiFiReconnect)) return;
- digitalWrite(ledWiFi, HIGH);
- timerWiFi = millis();
- Serial.print("Reconnecting to " + WiFiSSID + " .");
- WiFi.disconnect();
- WiFi.mode(WIFI_OFF);
- WiFi.persistent(true);
- delay(1000);
- uint32_t timer = millis();
- WiFi.mode(WIFI_STA);
- WiFi.begin(WiFiSSID.c_str(), WiFiPassword.c_str());
- delay(250);
- while (WiFi.status() != WL_CONNECTED) {
-  delay(250);
-  digitalWrite(ledWiFi, LOW);
-  if (abs(millis() - timer) > timeoutWiFiConnect) {
-    WiFiError(3);
-    WiFi.disconnect();
-    WiFi.mode(WIFI_OFF);
-    WiFi.persistent(true);
-    return;
-  }
-  delay(250);
-  digitalWrite(ledWiFi, HIGH);
-  Serial.print(".");
- }
- Serial.println(". Ready");
- Serial.print("IP: ");
- Serial.println(WiFi.localIP());
-} // WiFiReconnect
 
 // #FUNCTION# ===================================================================================================
 // Name...........: MQTTReconnect

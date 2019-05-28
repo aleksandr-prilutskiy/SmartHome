@@ -2,8 +2,8 @@
 //  Filename:     LPG_sensor.ino
 //  Description:  Система "Умный дом". Скетч прошивки блока Smart LPG Sensor
 //  Author:       Aleksandr Prilutskiy
-//  Version:      0.1.0.8
-//  Date:         26.05.2019
+//  Version:      0.1.0.9
+//  Date:         28.05.2019
 //  URL:          https://github.com/aleksandr-prilutskiy/SmartHome-SensorLPG
 
 #include <ESP8266WiFi.h>
@@ -14,7 +14,7 @@
 
 // Константы настройки устройства:
 const String        deviceName       = "Smart LPG Sensor";   // Название устройства
-const String        deviceVersion    = "1.0.8";              // Версия прошивки устройства
+const String        deviceVersion    = "1.0.9";              // Версия прошивки устройства
 const uint8_t       pinButtonReset   = D0;                   // Кнопка сброса настроек WiFi
 const uint8_t       ledPower         = D1;                   // Светодиод индикации работы устройства
 const uint8_t       ledWiFi          = D2;                   // Светодиод активности WiFi
@@ -87,7 +87,6 @@ void setup() {
 // Syntax.........: loop()
 // ==============================================================================================================
 void loop() {
- if (WiFi.status() != WL_CONNECTED) WiFiReconnect();
  if ((WiFiSSID.length() == 0) || (WiFi.status() == WL_CONNECTED)) {
   digitalWrite(ledWiFi, HIGH);
   WebServer.handleClient();

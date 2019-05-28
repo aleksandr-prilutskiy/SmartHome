@@ -1,7 +1,7 @@
 //  Filename:     _Web.ino
 //  Description:  Система "Умный дом". Функции подготовки и обработки web-страниц
 //  Author:       Aleksandr Prilutskiy
-//  Date:         24.05.2019
+//  Date:         28.05.2019
 
 // #FUNCTION# ===================================================================================================
 // Name...........: webGetIndex
@@ -296,4 +296,3 @@ void webNotFound() {
  Serial.println("Error: HTTP Page Not Found");
  WebServer.send(404, "text/html", webPageError("Страница не найдена"));
 } // webNotFound
-

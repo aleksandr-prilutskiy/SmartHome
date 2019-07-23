@@ -1,7 +1,7 @@
 //  Filename:     _Probes.ino
-//  Description:  Система "Умный дом". Функции для работы с датчиками
+//  Description:  Система "Умный дом". Блок Smart LPG Sensor. Функции для работы с датчиками
 //  Author:       Aleksandr Prilutskiy
-//  Date:         28.05.2019
+//  Date:         23.07.2019
 
       float         sumTemperature   = 0;                    // Накапление значений температуры
       float         sumHumidity      = 0;                    // Накапление значений влажности
@@ -16,8 +16,11 @@ const uint32_t      timeoutLPG       = 15000;                // Периодич
 
       uint32_t      timerAlarmBeep   = 0;                    // Таймер сигнализации уровня углеводородных газов
       uint32_t      timerSendData    = 0;                    // Таймер отправки результатов измерений
-const uint32_t      timeoutSendData  = 30000;                // Периодичность отправки результатов измерений
+const uint32_t      timeoutSendData  = 30000;               // Периодичность отправки результатов измерений
 
+      float         lastTemperature  = 0;                    // Текущее значение температуры
+      float         lastHumidity     = 0;                    // Текущее значение влажности
+      float         lastLPG          = 0;                    // Текущее значение углеводородных газов
       char          msg[50];
 
 // #FUNCTION# ===================================================================================================
@@ -32,28 +35,25 @@ void ProbesReadDHT11() {
  timerDHT11 = millis();
  float t = dht11.readTemperature();
  float h = dht11.readHumidity();
+ delay(500);
  if (isnan(t) || isnan(h)) {
+  digitalWrite(ledPower, HIGH);
   Serial.println("Error: Sensor DHT11 Read Error");
   for (int i = 0; i < 3; i++) {
    digitalWrite(ledError, HIGH);
-   delay(100);
+   delay(250);
    digitalWrite(ledError, LOW);
-   delay(100);
+   delay(250);
   }
-  digitalWrite(ledPower, HIGH);
   return;
  }
- dtostrf(round(10 * t) / 10, 10, 2, msg);
- strTemperature = String(msg);
- strTemperature.trim();
- dtostrf(round(10 * h) / 10, 10, 2, msg);
- strHumidity = String(msg);
- strHumidity.trim();
- sumTemperature += t;
- sumHumidity += h;
+ lastTemperature = round(10 * t) / 10;
+ lastHumidity    = round(10 * h) / 10;
+ sumTemperature  = sumTemperature +  t;
+ sumHumidity     = sumHumidity + h;
  countDHT11++;
- Serial.println((String) "Temperature = " + strTemperature + "C");
- Serial.println((String) "Humidity = " + strHumidity + "%");
+ Serial.println((String) "Temperature = " + lastTemperature + "C");
+ Serial.println((String) "Humidity = " + lastHumidity + "%");
  digitalWrite(ledPower, HIGH);
 } // ProbesReadDHT11
 
@@ -66,25 +66,23 @@ void ProbesReadLPG() {
  if (abs(millis() - timerLPG) < timeoutLPG) return;
  digitalWrite(ledPower, LOW);
  timerLPG = millis();
- float LPG = 3.3 * analogRead(pinMQ6) / 5;
- if (LPG < 0) {
+ float g = 3.3 * analogRead(pinMQ6) / 5;
+ delay(500);
+ if (g < 0) {
+  digitalWrite(ledPower, HIGH);
   Serial.println("Error: Sensor LPG Read Error");
   for (int i = 0; i < 3; i++) {
    digitalWrite(ledError, HIGH);
-   delay(100);
+   delay(250);
    digitalWrite(ledError, LOW);
-   delay(100);
+   delay(250);
   }
-  digitalWrite(ledPower, HIGH);
   return;
  }
- lastLPG = round(10 * LPG) / 10;
- dtostrf(lastLPG, 10, 2, msg);
- strLPG = String(msg);
- strLPG.trim();
- sumLPG += LPG;
+ lastLPG = round(10 * g) / 10;
+ sumLPG  = sumLPG + g;
  countLPG++;
- Serial.println((String) "LPG = " + strLPG + " PPM");
+ Serial.println((String) "LPG = " + lastLPG + " PPM");
  digitalWrite(ledPower, HIGH);
 } // ProbesReadLPG
 
@@ -101,12 +99,14 @@ void ProbesCheckLPG() {
  if (abs(millis() - timerAlarmBeep) < 1000) return;
  timerAlarmBeep = millis();
  tone(pinBuzzer, 2500);
- Serial.print("WARNING! LPG = " + strLPG + " PPM");
+ Serial.print("WARNING! LPG = ");
+ Serial.print(lastLPG);
+ Serial.println(" PPM");
  if (!client.connected()) MQTTReconnect();
  if (!client.connected()) return;
+ snprintf(msg, 50, "%f", lastLPG);
+ client.publish(MQTT_LPG.c_str(), msg);
  digitalWrite(ledWiFi, LOW);
- client.publish(MQTT_LPG.c_str(), strLPG.c_str());
- Serial.println("MQTT publish: " + MQTT_LPG + "->" + strLPG);
  while (abs(millis() - timerAlarmBeep) < 1000) delay(10); 
  noTone(pinBuzzer);
  timerAlarmBeep = millis();
@@ -121,32 +121,27 @@ void ProbesSendData() {
  if (abs(millis() - timerSendData) < timeoutSendData) return;
  timerSendData = millis();
  if ((countDHT11 == 0) && (countLPG == 0)) return;
+ digitalWrite(ledWiFi, HIGH);
  if (!client.connected()) MQTTReconnect();
  if (!client.connected()) return;
- digitalWrite(ledWiFi, LOW);
  if (countDHT11 > 0) {
   if (MQTT_Temperature.length() > 0) {
-   dtostrf(round(10 * sumTemperature / countDHT11) / 10, 10, 2, msg);
-   String Temperature = String(msg);
-   Temperature.trim();
-   client.publish(MQTT_Temperature.c_str(), Temperature.c_str());
-   Serial.println("MQTT publish: " + MQTT_Temperature + "->" + Temperature);
+   //snprintf(msg, 50, "%f", floor(10 * sumTemperature / countDHT11) / 10);
+   sprintf(msg, "%1.2f", sumTemperature / countDHT11);
+   client.publish(MQTT_Temperature.c_str(), msg);
   }
   if (MQTT_Humidity.length() > 0) {
-   dtostrf(round(10 * sumHumidity / countDHT11) / 10, 10, 2, msg);
-   String Humidity = String(msg);
-   Humidity.trim();
-   client.publish(MQTT_Humidity.c_str(), Humidity.c_str());
-   Serial.println("MQTT publish: " + MQTT_Humidity + "->" + Humidity);
+   //snprintf(msg, 50, "%f", floor(10 * sumHumidity / countDHT11) / 10);
+   sprintf(msg, "%1.2f", sumHumidity / countDHT11);
+   client.publish(MQTT_Humidity.c_str(), msg);
   }
  }
  if ((countLPG > 0) && (MQTT_LPG.length() > 0)) {
-  dtostrf(round(10 * sumLPG / countLPG) / 10, 10, 2, msg);
-  String LPG = String(msg);
-  LPG.trim();
-  client.publish(MQTT_LPG.c_str(), LPG.c_str());
-  Serial.println("MQTT publish: " + MQTT_LPG + "->" + LPG);
+  //snprintf(msg, 50, "%f", floor(10 * sumLPG / countLPG) / 10);
+  sprintf(msg, "%1.2f", sumLPG / countLPG);
+  client.publish(MQTT_LPG.c_str(), msg);
  }
+ digitalWrite(ledWiFi, LOW);
  sumTemperature   = 0;
  sumHumidity      = 0;
  sumLPG           = 0;

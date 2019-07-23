@@ -1,7 +1,7 @@
 //  Filename:     _Web.ino
-//  Description:  Система "Умный дом". Функции подготовки и обработки web-страниц
+//  Description:  Система "Умный дом". Блок Smart LPG Sensor. Функции подготовки и обработки web-страниц
 //  Author:       Aleksandr Prilutskiy
-//  Date:         28.05.2019
+//  Date:         23.07.2019
 
 // #FUNCTION# ===================================================================================================
 // Name...........: webGetIndex
@@ -9,9 +9,10 @@
 // Syntax.........: webGetIndex()
 // ==============================================================================================================
 void webGetIndex() {
- digitalWrite(ledWiFi, LOW);
+ digitalWrite(ledWiFi, HIGH);
  Serial.println("HTTP GET /index");
  WebServer.send(200, "text/html", webPageIndex());
+ digitalWrite(ledWiFi, LOW);
 } // webGetIndex
 
 // #FUNCTION# ===================================================================================================
@@ -20,9 +21,10 @@ void webGetIndex() {
 // Syntax.........: webGetSetup()
 // ==============================================================================================================
 void webGetSetup() {
- digitalWrite(ledWiFi, LOW);
+ digitalWrite(ledWiFi, HIGH);
  Serial.println("HTTP GET /setup");
  WebServer.send(200, "text/html", webPageSetup());
+ digitalWrite(ledWiFi, LOW);
 } // webGetSetup()
 
 // #FUNCTION# ===================================================================================================
@@ -31,7 +33,7 @@ void webGetSetup() {
 // Syntax.........: webGetUpdate()
 // ==============================================================================================================
 void webGetUpdate() {
- digitalWrite(ledWiFi, LOW);
+ digitalWrite(ledWiFi, HIGH);
  Serial.println("HTTP POST /update");
  errorStr = "";
  EEPROM.begin(sizeEEPROM);
@@ -62,13 +64,15 @@ void webGetUpdate() {
  EEPROM.end();
  if (errorStr.length() > 0) {
   WebServer.send(200, "text/html", webPageError(errorStr));
+  digitalWrite(ledWiFi, LOW);
   return;
  }
  WebServer.send(200, "text/html", webPageUpdate());
+ digitalWrite(ledWiFi, LOW);
  for (int i = 0; i < 5; i++) {
-  delay(100);
+  delay(500);
   digitalWrite(ledPower, LOW);
-  delay(100);
+  delay(500);
   digitalWrite(ledPower, HIGH);
  }
  Reboot();
@@ -80,7 +84,7 @@ void webGetUpdate() {
 // Syntax.........: webGetReset()
 // ==============================================================================================================
 void webGetReset() {
- digitalWrite(ledWiFi, LOW);
+ digitalWrite(ledWiFi, HIGH);
  Serial.println("HTTP GET /reset");
  Reboot();
 } // webGetReset
@@ -131,18 +135,24 @@ String webPageHeader() {
 // Syntax.........: webPageIndex()
 // ==============================================================================================================
 String webPageIndex() {
+ char strTemperature[12];
+ char strHumidity[12];
+ char strLPG[12];
+ if (!isnan(lastTemperature)) sprintf(strTemperature, "%1.2f", lastTemperature);  
+ if (!isnan(lastTemperature)) sprintf(strHumidity, "%1.2f", lastHumidity);  
+ sprintf(strLPG, "%1.2f", lastLPG);  
  String web = webPageHeader();
  web +=    "<div class=\"left\">"
             "<h2>Состояние утройства</h2>"
             "<div class=\"info\">"
              "<table>" +
-              (strTemperature.length() > 0
-               ? "<tr><td>Значения датчика температуры:</td><td>" + strTemperature + " °С</td></tr>" : "") +
-              (strHumidity.length() > 0
-               ? "<tr><td>Значения датчика влажности:</td><td>" + strHumidity + " %</td></tr>" : "") +
-              (strLPG.length() > 0
-               ? "<tr><td>Значения датчика углеводородных газов:</td><td>" +  strLPG + " PPM</td></tr>" : "") +
-              "<tr><td>Соединение с брокером MQTT:</td><td>" + 
+              (!isnan(lastTemperature) ? "<tr><td>Значения датчика температуры:</td><td>" +
+               String(strTemperature) + " °С</td></tr>" : "") +
+              (!isnan(lastHumidity) ? "<tr><td>Значения датчика влажности:</td><td>" +
+               String(strHumidity) + " %</td></tr>" : "") +
+              "<tr><td>Значения датчика углеводородных газов:</td><td>" +
+               String(strLPG) + " PPM</td></tr>"
+              "<tr><td>Соединение с брокером MQTT:</td><td>" +
                (connectMQTT ? "установлено" : "отсуствует") + "</td></tr>"
              "</table>"
             "</div>"
@@ -173,7 +183,7 @@ String webPageSetup() {
                 "<td>Пароль точки доступа WiFi:</td>"
                 "<td><input type=\"password\" name=\"pass\" value=\"" + password + "\"></td>"
                "</tr>"
-               "<tr><td><br><strong>Настройки протокола MQTT:</strong></td></tr>"
+               "<tr><td><strong>Настройки протокола MQTT:</strong></td></tr>"
                "<tr>"
                 "<td>DNS-имя или IP-адрес брокера MQTT:</td>"
                 "<td><input name=\"mqtt_server\" value=\"" + MQTT_Server + "\"></td>"
@@ -194,7 +204,7 @@ String webPageSetup() {
                 "<td>Пароль пользователя брокера MQTT:</td>"
                 "<td><input name=\"mqtt_pass\" value=\"" + MQTT_Password + "\"></td>"
                "</tr>"
-               "<tr><td><br><strong>Настройки датчиков:</strong></td></tr>"
+               "<tr><td><strong>Настройки датчиков:</strong></td></tr>"
                "<tr>"
                 "<td>MQTT ID датчика температуры :</td>"
                 "<td><input name=\"mqtt_tmp\" value=\"" + MQTT_Temperature + "\"></td>"
@@ -266,6 +276,18 @@ String webPageError(String message) {
 } // webPageError
 
 // #FUNCTION# ===================================================================================================
+// Name...........: webNotFound
+// Description....: Вывод ошибки "Страница не найдена"
+// Syntax.........: webNotFound()
+// ==============================================================================================================
+void webNotFound() {
+ digitalWrite(ledWiFi, HIGH);
+ Serial.println("Error: HTTP Page Not Found");
+ WebServer.send(404, "text/html", webPageError("Страница не найдена"));
+ digitalWrite(ledWiFi, LOW);
+} // webNotFound
+
+// #FUNCTION# ===================================================================================================
 // Name...........: webPageFooter
 // Description....: Подготовка 'подвала' web-страницы
 // Syntax.........: webPageFooter()
@@ -285,14 +307,3 @@ String webPageFooter() {
         "</html>";
  return (web);
 } // webPageFooter
-
-// #FUNCTION# ===================================================================================================
-// Name...........: webNotFound
-// Description....: Вывод ошибки "Страница не найдена"
-// Syntax.........: webNotFound()
-// ==============================================================================================================
-void webNotFound() {
- digitalWrite(ledWiFi, LOW);
- Serial.println("Error: HTTP Page Not Found");
- WebServer.send(404, "text/html", webPageError("Страница не найдена"));
-} // webNotFound

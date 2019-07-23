@@ -1,7 +1,7 @@
 //  Filename:     _EEPROM.ino
-//  Description:  Система "Умный дом". Функции для работы с EEPROM
+//  Description:  Система "Умный дом". Блок Smart LPG Sensor. Функции для работы с EEPROM
 //  Author:       Aleksandr Prilutskiy
-//  Date:         28.05.2019
+//  Date:         23.07.2019
 
 // Константы адресов переменных в EEPROM:
 const uint16_t      epprom_WiFiSSID  =   0;                  // WiFiSSID (32 байта)
@@ -103,3 +103,4 @@ void EEPROMSaveString(String data, String& varSetup, int maxLength, String varNa
  EEPROM.write(addr + varSetup.length(), 0x00);
  Serial.println(varName + " = " + varSetup);
 } // EEPROMSaveString
+

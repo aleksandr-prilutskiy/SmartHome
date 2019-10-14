@@ -1,7 +1,7 @@
 //  Filename:     _Web.ino
 //  Description:  Система "Умный дом". Блок Smart LPG Sensor. Функции подготовки и обработки web-страниц
 //  Author:       Aleksandr Prilutskiy
-//  Date:         23.07.2019
+//  Date:         14.10.2019
 
 // #FUNCTION# ===================================================================================================
 // Name...........: webGetIndex
@@ -9,10 +9,9 @@
 // Syntax.........: webGetIndex()
 // ==============================================================================================================
 void webGetIndex() {
- digitalWrite(ledWiFi, HIGH);
+ digitalWrite(ledWiFi, WiFi.status() == WL_CONNECTED ? LOW : HIGH);
  Serial.println("HTTP GET /index");
  WebServer.send(200, "text/html", webPageIndex());
- digitalWrite(ledWiFi, LOW);
 } // webGetIndex
 
 // #FUNCTION# ===================================================================================================
@@ -21,11 +20,21 @@ void webGetIndex() {
 // Syntax.........: webGetSetup()
 // ==============================================================================================================
 void webGetSetup() {
- digitalWrite(ledWiFi, HIGH);
+ digitalWrite(ledWiFi, WiFi.status() == WL_CONNECTED ? LOW : HIGH);
  Serial.println("HTTP GET /setup");
  WebServer.send(200, "text/html", webPageSetup());
- digitalWrite(ledWiFi, LOW);
 } // webGetSetup()
+
+// #FUNCTION# ===================================================================================================
+// Name...........: webGetLog
+// Description....: Обработка запроса /setup
+// Syntax.........: webGetLog()
+// ==============================================================================================================
+void webGetLog() {
+ digitalWrite(ledWiFi, WiFi.status() == WL_CONNECTED ? LOW : HIGH);
+ Serial.println("HTTP GET /setup");
+ WebServer.send(200, "text/html", webPageLog());
+} // webGetLog()
 
 // #FUNCTION# ===================================================================================================
 // Name...........: webGetUpdate
@@ -33,7 +42,7 @@ void webGetSetup() {
 // Syntax.........: webGetUpdate()
 // ==============================================================================================================
 void webGetUpdate() {
- digitalWrite(ledWiFi, HIGH);
+ digitalWrite(ledWiFi, WiFi.status() == WL_CONNECTED ? LOW : HIGH);
  Serial.println("HTTP POST /update");
  errorStr = "";
  EEPROM.begin(sizeEEPROM);
@@ -60,11 +69,12 @@ void webGetUpdate() {
    EEPROMSaveString(WebServer.arg(i), MQTT_LPG, 15, "Topic LPG Sensor", epprom_LPG);
   else if (WebServer.argName(i) == "lpg")
    EEPROMSaveInt(WebServer.arg(i).toInt(), alarmLPG, "LPG Alarm Level", epprom_alarmLPG);
+  else if (WebServer.argName(i) == "utc")
+   EEPROMSaveByte(WebServer.arg(i).toInt() + 24, UTC, "Time UTC", epprom_UTC);
  }
  EEPROM.end();
  if (errorStr.length() > 0) {
   WebServer.send(200, "text/html", webPageError(errorStr));
-  digitalWrite(ledWiFi, LOW);
   return;
  }
  WebServer.send(200, "text/html", webPageUpdate());
@@ -84,7 +94,7 @@ void webGetUpdate() {
 // Syntax.........: webGetReset()
 // ==============================================================================================================
 void webGetReset() {
- digitalWrite(ledWiFi, HIGH);
+ digitalWrite(ledWiFi, WiFi.status() == WL_CONNECTED ? LOW : HIGH);
  Serial.println("HTTP GET /reset");
  Reboot();
 } // webGetReset
@@ -103,7 +113,7 @@ String webPageHeader() {
            "*{padding:0;margin:0}"
            "body{background:#000;font-family:Verdana,Arial,Helvetica,sans-serif;font-size:11px;"
             "line-height:18px;color:#aaa}"
-           "table{font-size:12px;line-height:18px;width:100%}td{width:50%}td:first-child{text-align:right}"
+           "table{font-size:12px;line-height:18px;width:100%}"
            "a{color:#97C4FF;text-decoration:none}a:hover{text-decoration:underline;color:#aaa}"
            "#wrap{margin:40px auto 0 auto;width: 800px}"
            "#header{border:5px solid #222;height:100px;background:#333}"
@@ -112,12 +122,14 @@ String webPageHeader() {
             "letter-spacing:-1px;line-height:12px}"
            ".left{margin-top:10px;width:570px;float:left;text-align:justify;border:5px solid #222;"
             "padding:10px;background:#333}"
-           ".left h2{color:#FF4800;font-size:24px;letter-spacing:-3px;font-weight:100;padding:10px 0 15px 0}"
+           ".left h2{color:#FF4800;font-size:24px;letter-spacing:-1px;font-weight:100;padding:10px 0 15px 0}"
            ".right{margin-top:10px;width:160px;float:right;border:5px solid #222;font-size:12px;"
             "padding:10px;background:#333}"
            ".right ul{list-style-type:square;padding:5px 10px 10px 20px;color:#59799F}"
            ".right h2{height:30px;font-size:14px;color:#666;line-height:30px}"
            ".right a{text-decoration:none}"
+           ".split td{width:50%}"
+           ".split td:first-child{text-align:right}"
            "#footer{margin-top:10px;text-align:center;color:#eee;font-size:11px;border:5px solid #222;"
             "padding:10px;background:#333}"
            "textarea{color:#ccc;background:#333;resize: none}"
@@ -143,8 +155,8 @@ String webPageIndex() {
  sprintf(strLPG, "%1.2f", lastLPG);  
  String web = webPageHeader();
  web +=    "<div class=\"left\">"
-            "<h2>Состояние утройства</h2>"
-            "<div class=\"info\">"
+            "<h2>Состояние устройства</h2>"
+            "<div class=\"split\">"
              "<table>" +
               (!isnan(lastTemperature) ? "<tr><td>Значения датчика температуры:</td><td>" +
                String(strTemperature) + " °С</td></tr>" : "") +
@@ -153,10 +165,44 @@ String webPageIndex() {
               "<tr><td>Значения датчика углеводородных газов:</td><td>" +
                String(strLPG) + " PPM</td></tr>"
               "<tr><td>Соединение с брокером MQTT:</td><td>" +
-               (connectMQTT ? "установлено" : "отсуствует") + "</td></tr>"
-             "</table>"
+               (connectMQTT ? "установлено" : "отсутствует") + "</td></tr>";
+ if (lastTimeFromNTP != 0) web += "<tr><td><br></td></tr>"
+              "<tr><td>Текущее время:</td>"
+               "<td><i id=\"tD\"></i> <i id=\"tH\"></i>:<i id=\"tM\"></i>:<i id=\"tS\"></i></td></tr>"
+              "<tr><td>Время синхронизации часов:</td><td><i id=\"uT\"></i></td></tr>"
+              "<tr><td>Время работы устройства:</td>"
+               "<td><i id=\"rD\"></i> дней <i id=\"rH\"></i> часов <i id=\"rM\"></i> минут</td></tr>";
+ web +=      "</table>"
             "</div>"
            "</div>";
+ if (lastTimeFromNTP != 0) {
+  uint32_t time_now = timeNow();
+  uint32_t time_work = millisFix + (millis() / 1000);
+  uint32_t time_update = lastTimeFromNTP + 3600 * (UTC - 24);
+  web += "<script>"
+   "function str(i){if(i<10)return '0'+i;return i;}"
+   "function time(){"
+    "if(++tS>59){tM++;rM++;tS=0;}if(tM>59){tH++;tM=0;}if(tH>23){window.location.reload();}"
+    "if(rM>59){rH++;rM=0;}if(rH>23){rD++;rH=0;}"
+    "document.getElementById(\"tH\").innerHTML=str(tH);"
+    "document.getElementById(\"tM\").innerHTML=str(tM);"
+    "document.getElementById(\"tS\").innerHTML=str(tS);"
+    "document.getElementById(\"rD\").innerHTML=str(rD);"
+    "document.getElementById(\"rH\").innerHTML=str(rH);"
+    "document.getElementById(\"rM\").innerHTML=str(rM);"
+    "setTimeout(time, 1000);"
+   "}"
+   "var tH=" + String((time_now % 86400L) / 3600, DEC) + ";"
+   "var tM=" + String((time_now % 3600) / 60, DEC) + ";"
+   "var tS=" + String(time_now % 60, DEC) + ";"
+   "document.getElementById(\"tD\").innerHTML='" + dateToStr(time_now) + "';"
+   "document.getElementById(\"uT\").innerHTML='" + dateToStr(time_update) + " " + timeToStr(time_update) + "';"
+   "var rD=" + String(time_work / 86400L, DEC) + ";"
+   "var rH=" + String((time_work % 86400L) / 3600, DEC) + ";"
+   "var rM=" + String((time_work % 3600) / 60, DEC) + ";"
+   "window.onload = time;"
+  "</script>";
+ }
  return (web + webPageFooter());
 } // webPageIndex
 
@@ -170,8 +216,8 @@ String webPageSetup() {
  for (int i = 0; i < WiFiPassword.length(); i++) password = password + " ";
  String web = webPageHeader();
  web +=    "<div class=\"left\">"
-            "<h2>Настройка утройства</h2>"
-            "<div class=\"info\">"
+            "<h2>Настройка устройства</h2>"
+            "<div class=\"split\">"
              "<form method=\"POST\" action=\"update\">"
               "<table>"
                "<tr><td><strong>Настройки беспроводной сети:</strong></td></tr>"
@@ -190,7 +236,7 @@ String webPageSetup() {
                "</tr>"
                "<tr>"
                 "<td>Порт для подключения к брокеру MQTT:</td>"
-                "<td><input name=\"mqtt_port\" value=\"" + MQTT_Port + "\"></td>"
+                "<td><input name=\"mqtt_port\" value=\"" + String(MQTT_Port) + "\"></td>"
                "</tr>"
                "<tr>"
                 "<td>ID образца (Instance) брокера MQTT:</td>"
@@ -219,13 +265,18 @@ String webPageSetup() {
                "</tr>"
                "<tr>"
                 "<td>Пороговое значение датчика LPG:</td>"
-                "<td><input name=\"lpg\" value=\"" + alarmLPG + "\"></td>"
+                "<td><input name=\"lpg\" value=\"" + String(alarmLPG) + "\"></td>"
+               "</tr>"
+               "<tr><td><strong>Настройка времени:</strong></td></tr>"
+               "<tr>"
+                "<td>Часовой пояс (UTC +/- часов):</td>"
+                "<td><input name=\"utc\" value=\"" + String(UTC - 24) + "\"></td>"
                "</tr>"
               "</table>"
               "<br><p align=\"center\"><input type=\"submit\" value=\"Сохранить\"></p>"
              "</form>"
             "</div>"
-            "<h2>Управление утройством</h2>"
+            "<h2>Управление устройством</h2>"
             "<div class=\"info\">"
              "<p align=\"center\">"
               "<button onclick=\"confirmReboot()\">Перезагрузить</button>"
@@ -234,22 +285,43 @@ String webPageSetup() {
            "</div>"
 "<script>"
 "function confirmReboot() {"
-"if (confirm(\"Подтвертите действие для перезагрузки устройства\")==true) window.location.href='/reset';"
+"if (confirm(\"Подтвердите действие для перезагрузки устройства\")==true) window.location.href='/reset';"
 "}"
 "</script>";
  return (web + webPageFooter());
 } // webPageSetup
 
 // #FUNCTION# ===================================================================================================
+// Name...........: webPageLog
+// Description....: Подготовка web-страницы журнала работы устройства
+// Syntax.........: webPageLog()
+// ==============================================================================================================
+String webPageLog() {
+ String web = webPageHeader();
+ web +=    "<div class=\"left\">"
+            "<h2>Журнал работы устройства</h2>"
+            "<div>"
+             "<table>";
+ for (int i = logSize - 1; i >=0 ; i--) {
+  String txt = logGetEvent(i);
+  if (txt.length() > 0) web += "<tr><td colspan=\"2\">" + logGetDateTime(i) + ": " + txt + "</td></tr>";
+ }
+ web +=      "</table>"
+            "</div>"
+           "</div>";
+ return (web + webPageFooter());
+} // webPageLog
+
+// #FUNCTION# ===================================================================================================
 // Name...........: webPageUpdate
-// Description....: 
+// Description....: Подготовка web-страницы ожидания перезагрузки устройства
 // Syntax.........: webPageUpdate()
 // ==============================================================================================================
 String webPageUpdate() {
  String web = webPageHeader();
  web +=    "<div class=\"left\">"
-            "<h2>Перезагрузка утройства</h2>"
-            "<div class=\"info\">"
+            "<h2>Перезагрузка устройства</h2>"
+            "<div>"
              "<p>Подождите. Сейчас устройство будет перезагружено...</p>"
             "</div>"
            "</div>"
@@ -298,6 +370,7 @@ String webPageFooter() {
             "<ul>"
              "<li><a href=\"/\">Главная</a></li>"
              "<li><a href=\"/setup\">Настройки</a></li>"
+             "<li><a href=\"/log\">Журнал</a></li>"
             "</ul>"
            "</div>"
            "<div style=\"clear:both\"> </div>"

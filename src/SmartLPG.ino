@@ -1,9 +1,9 @@
 //  Title:        SmartHome - Smart LPG Sensor
-//  Filename:     smart_LPG_sensor.ino
+//  Filename:     SmartLPG.ino
 //  Description:  Система "Умный дом". Скетч прошивки блока Smart LPG Sensor
 //  Author:       Aleksandr Prilutskiy
-//  Version:      0.0.4.11
-//  Date:         23.07.2019
+//  Version:      0.0.5.5
+//  Date:         14.10.2019
 //  URL:          https://github.com/aleksandr-prilutskiy/SmartHome-SensorLPG
 //
 // Функции устройства:
@@ -12,6 +12,7 @@
 // 3. Сигнализация о превышении критического уровня углеводородных газов
 // 4. Контроль и настройка устройства через web-интерфейс
 // 5. Сброс настроек устройства при удержании специальной кнопки
+// 6. Ведение журнала работы устройства с синхронизацией времени по NTP
 //
 // Аппаратные средства:
 //  WeMos Di mini (https://wiki.wemos.cc/products:d1:d1_mini)
@@ -33,12 +34,12 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <PubSubClient.h>
-#include <EEPROM.h>
+#include <EEPROM.h> 
 #include <DHT.h>
 
 // Константы настройки устройства:
 const String        deviceName       = "Smart LPG Sensor";   // Название устройства
-const String        deviceVersion    = "4.11";                // Версия прошивки устройства
+const String        deviceVersion    = "5.5";                // Версия прошивки устройства
 const uint8_t       pinButtonReset   = D0;                   // Кнопка сброса настроек WiFi
 const uint8_t       ledError         = D1;                   // Светодиод индикации ошибки
 const uint8_t       ledPower         = D2;                   // Светодиод индикации работы устройства
@@ -46,20 +47,7 @@ const uint8_t       ledWiFi          = D3;                   // Светодио
 const uint8_t       pinDHT           = D4;                   // Датчик DHT-11
 const uint8_t       pinBuzzer        = D5;                   // Пьезоизлучатель
 const uint8_t       pinMQ6           = A0;                   // Датчик углеводородных газов (MQ6)
-const uint16_t      sizeEEPROM       = 256;                  // Размер используемой EEPROM
-
-// Переменные настройки устройства, хранящиеся в EEPROM:
-      String        WiFiSSID         = "";                   // SSID точки доступа WiFi
-      String        WiFiPassword     = "";                   // Пароль для подключения к точке доступа WiFi
-      String        MQTT_Server      = "";                   // DNS-имя или IP-адрес брокера MQTT
-      uint16_t      MQTT_Port        = 0;                    // Порт для подключения к брокеру MQTT
-      String        MQTT_ID          = "";                   // ID образца (Instance) брокера MQTT
-      String        MQTT_Login       = "";                   // Логин пользователя брокера MQTT
-      String        MQTT_Password    = "";                   // Пароль пользователя брокера MQTT
-      String        MQTT_Temperature = "";                   // Topic датчика температуры
-      String        MQTT_Humidity    = "";                   // Topic датчика влажности
-      String        MQTT_LPG         = "";                   // Topic датчика углеводородных газов
-      uint16_t      alarmLPG         = 0;                    // Порог опасного значения углеводородных газов
+const uint16_t      sizeEEPROM       = 512;                  // Размер используемой EEPROM
 
 // Прочие переменные:
       String        errorStr         = "";                   // Строка с сообщением об ошибке
@@ -71,7 +59,7 @@ PubSubClient        client(espClient);
 
 // #FUNCTION# ===================================================================================================
 // Name...........: setup
-// Description....: Перврначальная настройка при запуске устройства
+// Description....: Первоначальная настройка при запуске устройства
 // Syntax.........: setup()
 // ==============================================================================================================
 void setup() {
@@ -89,32 +77,29 @@ void setup() {
  Serial.println();
  Serial.println("Start...");
  CheckResetButton();
+ logInit();
  dht11.begin();
  EEPROMReadAll();
  if (!WiFiCreateAP()) WiFiSetup();
- WebServer.on("/", webGetIndex);
- WebServer.on("/reset", webGetReset);
- WebServer.on("/setup", webGetSetup);
- WebServer.on("/update", webGetUpdate);
+ timeInit();
+ WebServer.on("/",        webGetIndex);
+ WebServer.on("/reset",   webGetReset);
+ WebServer.on("/setup",   webGetSetup);
+ WebServer.on("/log",     webGetLog);
+ WebServer.on("/update",  webGetUpdate);
  WebServer.onNotFound(webNotFound);
  digitalWrite(ledPower, HIGH);
-
  tone(pinBuzzer, 415, 500);
- delay(500 * 1.3);
+ delay(650);
  tone(pinBuzzer, 466, 500);
- delay(500 * 1.3);
+ delay(650);
  tone(pinBuzzer, 370, 1000);
- delay(1000 * 1.3);
+ digitalWrite(ledError, HIGH);
+ digitalWrite(ledWiFi, HIGH);
+ delay(1300);
+ digitalWrite(ledError, LOW);
+ digitalWrite(ledWiFi, LOW);
  noTone(pinBuzzer);
- return;
- 
- tone(pinBuzzer, 415, 250);
- delay(100);
- tone(pinBuzzer, 466, 250);
- delay(100);
- tone(pinBuzzer, 370, 500);
- delay(200);
- noTone(pinBuzzer); 
 } // setup
 
 // #FUNCTION# ===================================================================================================
@@ -124,19 +109,20 @@ void setup() {
 // ==============================================================================================================
 void loop() {
  delay(100);
+ timeUpdate();
  WiFiReconnect();
- if (WiFi.status() == WL_CONNECTED) WebServer.handleClient();
- if (WiFiSSID.length() == 0) return;
- ProbesReadDHT11();
- ProbesReadLPG();
+ if ((WiFi.getMode() == WIFI_AP) || (WiFi.status() == WL_CONNECTED)) WebServer.handleClient();
+ if (WiFi.getMode() != WIFI_STA) return;
+ sensorsReadDHT11();
+ sensorsReadLPG();
  if (WiFi.status() != WL_CONNECTED) return;
- ProbesCheckLPG();
- ProbesSendData();
+ sensorsCheckLPG();
+ sensorsSendData();
 } // loop
 
 // #FUNCTION# ===================================================================================================
 // Name...........: CheckResetButton
-// Description....: Проверка нажатия кнопка сброса настроек и сброс настроек при ее удержании
+// Description....: Проверка нажатия кнопка сброса настроек и сброс настроек устройства при ее удержании
 // Syntax.........: CheckResetButton()
 // ==============================================================================================================
 void CheckResetButton() {
@@ -169,3 +155,4 @@ void Reboot() {
  WiFi.disconnect(true);
  ESP.reset();
 } // Reboot
+

@@ -2,8 +2,8 @@
 //  Filename:     SmartLPG.ino
 //  Description:  Система "Умный дом". Скетч прошивки блока Smart LPG Sensor
 //  Author:       Aleksandr Prilutskiy
-//  Version:      0.0.5.5
-//  Date:         14.10.2019
+//  Version:      0.0.6.0
+//  Date:         08.11.2019
 //  URL:          https://github.com/aleksandr-prilutskiy/SmartHome-SensorLPG
 //
 // Функции устройства:
@@ -39,7 +39,7 @@
 
 // Константы настройки устройства:
 const String        deviceName       = "Smart LPG Sensor";   // Название устройства
-const String        deviceVersion    = "5.5";                // Версия прошивки устройства
+const String        deviceVersion    = "6.0";                // Версия прошивки устройства
 const uint8_t       pinButtonReset   = D0;                   // Кнопка сброса настроек WiFi
 const uint8_t       ledError         = D1;                   // Светодиод индикации ошибки
 const uint8_t       ledPower         = D2;                   // Светодиод индикации работы устройства

@@ -1,7 +1,7 @@
 //  Filename:     _EEPROM.ino
 //  Description:  Система "Умный дом". Блок Smart LPG Sensor. Функции для работы с EEPROM
 //  Author:       Aleksandr Prilutskiy
-//  Date:         24.07.2019
+//  Date:         08.11.2019
 
 // Переменные настройки устройства, хранящиеся в EEPROM:
       String        WiFiSSID         =  "";                  // SSID точки доступа WiFi
@@ -11,6 +11,7 @@
       String        MQTT_ID          =  "";                  // ID образца (Instance) брокера MQTT
       String        MQTT_Login       =  "";                  // Логин пользователя брокера MQTT
       String        MQTT_Password    =  "";                  // Пароль пользователя брокера MQTT
+      String        MQTT_DeviceID    =  "";                  // ID устройства
       String        MQTT_Temperature =  "";                  // Topic датчика температуры
       String        MQTT_Humidity    =  "";                  // Topic датчика влажности
       String        MQTT_LPG         =  "";                  // Topic датчика углеводородных газов
@@ -30,7 +31,6 @@ const uint16_t      epprom_Humidity  = 208;                  // MQTT_Humidity (1
 const uint16_t      epprom_LPG       = 224;                  // MQTT_LPG (16 байт)
 const uint16_t      epprom_alarmLPG  = 240;                  // alarmLPG (2 байта)
 const uint16_t      epprom_UTC       = 242;                  // UTC (1 байт)
-const uint16_t      epprom_Log       = 243;                  // Начало хранения журнала
 
 // #FUNCTION# ===================================================================================================
 // Name...........: EEPROMReadAll

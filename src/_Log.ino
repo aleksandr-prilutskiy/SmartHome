@@ -1,7 +1,7 @@
 //  Filename:     _Web.ino
 //  Description:  Система "Умный дом". Блок Smart LPG Sensor. Функции работы с журналом работы устройства
 //  Author:       Aleksandr Prilutskiy
-//  Date:         14.10.2019
+//  Date:         30.10.2019
 //
 //  Журнал работы устройства представляет собой два одномерных массива, связанных по одному индексу.
 //  Первый массив (logTime) содержит время события, выраенное в секундах с момента запуска устройства.
@@ -84,6 +84,6 @@ String logGetDateTime(uint8_t index) {
  if ((index < 0) || (index >= logSize)) return "";
  if (logData[index] == 0) return "";
  uint32_t logtime = timeGet(logTime[index]);
- return String(logtime) + " = " + dateToStr(logtime) + " " + timeToStr(logtime);
+ return dateToStr(logtime) + " " + timeToStr(logtime);
 } // logGetDateTime
 

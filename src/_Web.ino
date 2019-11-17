@@ -1,7 +1,7 @@
 //  Filename:     _Web.ino
 //  Description:  Система "Умный дом". Блок Smart LPG Sensor. Функции подготовки и обработки web-страниц
 //  Author:       Aleksandr Prilutskiy
-//  Date:         14.10.2019
+//  Date:         08.11.2019
 
 // #FUNCTION# ===================================================================================================
 // Name...........: webGetIndex
@@ -380,3 +380,4 @@ String webPageFooter() {
         "</html>";
  return (web);
 } // webPageFooter
+
